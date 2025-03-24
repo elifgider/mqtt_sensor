@@ -60,7 +60,7 @@ Bu proje, IoT sensörlerinden gelen verilerin izlenmesi ve yönetilmesi için ge
 
 1. Projeyi klonlayın:
 ```bash
-git clone git@github.com:elifgider/mqtt-sensor-monitoring.git
+git clone git@github.com:elifgider/mqtt_sensor.git
 cd mqtt-sensor-monitoring
 ```
 
