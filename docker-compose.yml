@@ -1,0 +1,103 @@
+version: "3.8"
+
+services:
+  mqtt-broker:
+    image: eclipse-mosquitto
+    container_name: mqtt-broker
+    ports:
+      - "1883:1883"    # MQTT bağlantı noktası
+      - "9001:9001"    # WebSocket bağlantı noktası (opsiyonel)
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    restart: always
+    networks:
+      - mqtt_network
+  publisher:
+    build: .
+    container_name: mqtt-publisher
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    command: ["node", "publisher.js"]
+    depends_on:
+      - mqtt-broker
+    networks:
+      - mqtt_network
+  subscriber:
+    build:
+      context: .  # Ana dizin kullanılıyor
+    container_name: mqtt-subscriber
+    depends_on:
+      - mqtt-broker
+      - postgres
+      - influxdb
+    env_file:
+      - .env
+    volumes:
+      - .:/app  # Ana dizini bağla, böylece subscriber.js dosyasına ulaşabilirsin
+    command: ["node", "subscriber.js"]
+    networks:
+      - mqtt_network
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mqtt_network
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    restart: always
+    ports:
+      - "8086:8086"
+    env_file:
+      - .env
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+    networks:
+      - mqtt_network
+
+  sensor-backend:
+    build:
+      context: ./sensor-backend
+    container_name: sensor-backend
+    depends_on:
+      - postgres
+      - mqtt-broker
+      - influxdb
+    ports:
+      - "3001:3001"  
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=docker  
+    networks:
+      - mqtt_network
+  sensor-frontend:
+    build:
+      context: ./sensor-frontend
+    container_name: sensor-frontend
+    ports:
+      - "3000:80"  
+    depends_on:
+      - sensor-backend
+    networks:
+      - mqtt_network
+networks:
+  mqtt_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  influxdb_data:
